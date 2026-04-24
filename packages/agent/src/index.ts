@@ -1,13 +1,19 @@
 // code-server-ops agent
 //
-// Read-only Fastify service. Fills the "won't fix" gap upstream left:
+// Fastify service serving a read + mutation REST API and (optionally) the
+// bundled UI static assets. Fills the "won't fix" gap upstream left:
 //   coder/code-server#6291, #7228     — orphan terminals, "use tmux/screen"
 //   microsoft/vscode#213844, #78107   — extension folder orphans
 //   microsoft/vscode#294050, #309016  — extension host V8 heap OOM
 //
-// Endpoints: /terminals /extensions /ai-processes /memory /oom-events /metrics /health
+// API: /terminals /extensions /ai-processes /memory /oom-events /metrics /health
+// Mutations use a Preview→Confirm token pattern (see src/preview-tokens.ts).
 
-import Fastify from "fastify";
+import { access } from "node:fs/promises";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+import Fastify, { type FastifyInstance } from "fastify";
+import fastifyStatic from "@fastify/static";
 import { registerAuth } from "./auth.js";
 import { terminalsRoute } from "./routes/terminals.js";
 import { extensionsRoute } from "./routes/extensions.js";
@@ -34,7 +40,57 @@ export async function buildApp(): Promise<ReturnType<typeof Fastify>> {
   await app.register(oomEventsRoute);
   await app.register(metricsRoute);
 
+  await registerUiStatic(app);
+
   return app;
+}
+
+async function registerUiStatic(app: FastifyInstance): Promise<void> {
+  const uiRoot = await resolveUiRoot();
+  if (!uiRoot) {
+    app.log.info("UI static assets not found — serving API only");
+    return;
+  }
+  app.log.info({ uiRoot }, "serving UI static assets");
+  await app.register(fastifyStatic, {
+    root: uiRoot,
+    prefix: "/",
+  });
+  // SPA fallback — let /anything that 404s fall through to index.html
+  app.setNotFoundHandler((req, reply) => {
+    if (req.method !== "GET") {
+      reply.code(404).send({ error: "not found" });
+      return;
+    }
+    reply.sendFile("index.html", uiRoot);
+  });
+}
+
+async function resolveUiRoot(): Promise<string | null> {
+  // Allow override for local dev.
+  const override = process.env.CSOPS_UI_ROOT;
+  if (override) {
+    return (await pathExists(override)) ? override : null;
+  }
+
+  // Default: ./ui next to the agent's entry (bundled-image layout).
+  const here = path.dirname(fileURLToPath(import.meta.url));
+  const bundled = path.resolve(here, "..", "ui");
+  if (await pathExists(path.join(bundled, "index.html"))) return bundled;
+
+  const sibling = path.resolve(here, "ui");
+  if (await pathExists(path.join(sibling, "index.html"))) return sibling;
+
+  return null;
+}
+
+async function pathExists(p: string): Promise<boolean> {
+  try {
+    await access(p);
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 async function main(): Promise<void> {

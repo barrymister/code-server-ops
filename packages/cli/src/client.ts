@@ -28,3 +28,28 @@ export async function get<T>(pathname: string): Promise<T> {
   }
   return (await res.json()) as T;
 }
+
+export async function post<T>(pathname: string, body: unknown): Promise<T> {
+  const { url, password } = readConfig();
+  const res = await fetch(`${url.replace(/\/$/, "")}${pathname}`, {
+    method: "POST",
+    headers: {
+      authorization: authHeader(password),
+      "content-type": "application/json",
+    },
+    body: JSON.stringify(body ?? {}),
+  });
+  if (!res.ok) {
+    let detail = "";
+    try {
+      const j = await res.json();
+      if (j && typeof j === "object" && "error" in j) {
+        detail = ` — ${String((j as { error: unknown }).error)}`;
+      }
+    } catch {
+      // ignore
+    }
+    throw new Error(`POST ${pathname} — ${res.status} ${res.statusText}${detail}`);
+  }
+  return (await res.json()) as T;
+}

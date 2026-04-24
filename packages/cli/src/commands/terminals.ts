@@ -1,6 +1,6 @@
 import { Command } from "commander";
 import kleur from "kleur";
-import { get } from "../client.js";
+import { get, post } from "../client.js";
 import { formatDuration, formatKb, parseDuration } from "../format.js";
 
 interface TerminalInfo {
@@ -11,6 +11,24 @@ interface TerminalInfo {
   ptyHostPid: number | null;
   attached: boolean;
   cwd: string | null;
+}
+
+interface KillPreview {
+  token: string;
+  plan: Array<{
+    pid: number;
+    ageSeconds: number;
+    rssKb: number;
+    attached: boolean;
+    cwd: string | null;
+  }>;
+  ttlSeconds: number;
+}
+
+interface KillResult {
+  pid: number;
+  ok: boolean;
+  error?: string;
 }
 
 export function terminalsCommand(): Command {
@@ -65,15 +83,83 @@ export function terminalsCommand(): Command {
 
   cmd
     .command("kill <pid>")
-    .description("Preview only in v0.0.1-alpha.1 — prints the kill command for you to run.")
-    .action((pid: string) => {
-      console.log(
-        kleur.yellow(
-          "Preview mode — mutation endpoints land in v0.1.0. Run this on the host:",
-        ),
-      );
-      console.log(`  sudo kill -9 ${pid}`);
+    .description("Kill a single shell-integration bash by PID")
+    .option("--yes", "skip the confirmation prompt")
+    .option("--json", "emit JSON")
+    .action(async (pidArg: string, opts: { yes?: boolean; json?: boolean }) => {
+      const pid = Number.parseInt(pidArg, 10);
+      if (!Number.isInteger(pid) || pid <= 0) {
+        console.error(kleur.red(`invalid pid: ${pidArg}`));
+        process.exit(1);
+      }
+      await runKill({ pids: [pid] }, opts);
     });
 
+  cmd
+    .command("kill-orphans")
+    .description("Kill all shell-integration bash terminals not attached to ptyHost")
+    .option("--older-than <duration>", "only kill those older than this (e.g. 24h)")
+    .option("--yes", "skip the confirmation prompt")
+    .option("--json", "emit JSON")
+    .action(
+      async (opts: { olderThan?: string; yes?: boolean; json?: boolean }) => {
+        const olderThanSeconds = opts.olderThan ? parseDuration(opts.olderThan) : 0;
+        await runKill({ orphanOnly: true, olderThanSeconds }, opts);
+      },
+    );
+
   return cmd;
+}
+
+async function runKill(
+  previewBody: Record<string, unknown>,
+  opts: { yes?: boolean; json?: boolean },
+): Promise<void> {
+  const preview = await post<KillPreview>("/terminals/preview-kill", previewBody);
+
+  if (opts.json && !opts.yes) {
+    process.stdout.write(JSON.stringify({ preview }, null, 2) + "\n");
+    console.error(kleur.yellow("Re-run with --yes to commit."));
+    return;
+  }
+
+  if (!opts.json) {
+    console.log(
+      kleur.yellow(
+        `Preview — ${preview.plan.length} terminal(s) will be SIGKILL'd:`,
+      ),
+    );
+    for (const p of preview.plan) {
+      console.log(
+        `  pid=${p.pid}  age=${formatDuration(p.ageSeconds)}  rss=${formatKb(p.rssKb)}  cwd=${p.cwd ?? "-"}`,
+      );
+    }
+  }
+
+  if (!opts.yes) {
+    console.error(kleur.yellow("Re-run with --yes to commit."));
+    return;
+  }
+
+  const result = await post<{ results: KillResult[] }>("/terminals/kill", {
+    token: preview.token,
+  });
+
+  if (opts.json) {
+    process.stdout.write(JSON.stringify(result, null, 2) + "\n");
+    return;
+  }
+
+  const ok = result.results.filter((r) => r.ok).length;
+  const failed = result.results.length - ok;
+  console.log(
+    failed === 0
+      ? kleur.green(`✓ killed ${ok} terminal(s)`)
+      : kleur.yellow(`killed ${ok}, failed ${failed}`),
+  );
+  for (const r of result.results) {
+    if (!r.ok) {
+      console.log(`  ${kleur.red("✗")} pid=${r.pid}  ${r.error ?? ""}`);
+    }
+  }
 }

@@ -2,7 +2,7 @@
 
 Admin dashboard + agent for self-hosted [code-server](https://github.com/coder/code-server). Fills the "won't fix" gap upstream left.
 
-> **Status:** Pre-alpha. `v0.0.1-alpha.1` ships the agent + CLI. UI package + kill/GC mutation flows land in `v0.1.0`.
+> **Status:** Alpha. `v0.0.2-alpha.1` ships the agent, CLI, and React UI — four dashboards with a Preview→Confirm mutation pattern. `v0.1.0` (session 97) cuts the docker image + growth-engine demo site.
 
 ## Why this exists
 
@@ -14,35 +14,67 @@ If you self-host code-server for a single user (not a team), you hit operational
 
 Coder Enterprise addresses some of this — for team workspaces managed via Terraform + k8s. For single-tenant self-hosters there is no admin panel. That is the gap this project fills.
 
-## What's in the box (v0.0.1-alpha.1)
+## What's in the box (v0.0.2-alpha.1)
 
 | Package | What it does |
 |---|---|
-| `code-server-ops-agent` | Fastify service, 6 read-only endpoints (`/terminals`, `/extensions`, `/ai-processes`, `/memory`, `/oom-events`, `/metrics`). Runs as a sidecar next to code-server. |
-| `code-server-ops-cli` | `csops` — commander-based terminal client. `csops terminals list`, `csops extensions list`, `csops memory watch`. Cron-friendly with `--json`. |
+| [`code-server-ops-agent`](https://www.npmjs.com/package/code-server-ops-agent) | Fastify service. Read endpoints (`/terminals`, `/extensions`, `/ai-processes`, `/memory`, `/oom-events`, `/metrics`) + mutation endpoints with a Preview→Confirm token pattern. Serves the bundled UI at `/`. |
+| [`code-server-ops-cli`](https://www.npmjs.com/package/code-server-ops-cli) | `csops` — commander-based terminal client. `terminals list/kill/kill-orphans`, `extensions list/gc`, `memory show/watch/restart-ext-host`. Cron-friendly with `--json`. |
+| [`code-server-ops-ui`](https://www.npmjs.com/package/code-server-ops-ui) | React 19 + Tailwind v4 + shadcn component library. Four dashboards: Terminal Inspector, Extension Folder Explorer, AI Process Watcher, Memory + OOM Timeline. Also publishes a standalone SPA. |
 
-Coming in `v0.1.0` (session 97):
+## Four dashboards
 
-- UI package: Vite + React 19 + Tailwind v4 + shadcn. Dark-mode dashboards with Preview-before-commit kill/GC flows.
-- Docker image on `ghcr.io/barrymister/code-server-ops`.
-- Reference deployment: [engine.barrymister.dev/infrastructure/code-server](https://engine.barrymister.dev/infrastructure/code-server).
+- **Terminal Inspector** — one row per shell-integration bash. Per-row kill + bulk "kill orphans older than [age]" with a Preview modal listing the exact PIDs before you commit.
+- **Extension Folder Explorer** — disk folders vs `extensions.json` registry. Orphan badge + multi-version badge. "GC all orphans" shows reclaimable bytes before deleting.
+- **AI Process Watcher** — Claude Code, Copilot, Continue, Cline, Codex. Flags duplicates from auto-resumed sessions, kills them with one click.
+- **Memory + OOM Timeline** — 1h extension-host RSS chart with OOM events from `journalctl` overlaid as red markers. "Restart ext host" button SIGTERMs the extension host surgically — code-server respawns it without losing your tabs.
 
-## Install (sidecar)
+All destructive actions use a two-step Preview→Confirm flow: the UI fetches a preview (listing what's about to change), then commits with a short-lived confirmation token. Stale-tab drive-bys are rejected on the server.
+
+## Install
+
+### Sidecar (recommended)
 
 ```yaml
 services:
   code-server-ops-agent:
-    image: ghcr.io/barrymister/code-server-ops:0.0.1-alpha.1   # available session 97
+    image: ghcr.io/barrymister/code-server-ops:0.0.2-alpha.1   # docker image lands session 97
     pid: "container:code-server"
     network_mode: "service:code-server"
     volumes:
       - /var/log/journal:/var/log/journal:ro
-      - code-server-extensions:/home/coder/.local/share/code-server/extensions:ro
+      - code-server-extensions:/home/coder/.local/share/code-server/extensions
     environment:
       - CSOPS_PASSWORD=${CSOPS_PASSWORD}
 ```
 
-See [docs/INSTALL.md](./docs/INSTALL.md) for the full sidecar recipe and the `CAP_SYS_PTRACE` non-root hardening path.
+The UI is served from `http://<host>:4242/`. Open that URL, enter your `CSOPS_PASSWORD`, and the four dashboards appear. See [docs/INSTALL.md](./docs/INSTALL.md) for the full recipe and the `CAP_SYS_PTRACE` non-root hardening path.
+
+### CLI only (no UI)
+
+```bash
+npm install -g code-server-ops-cli
+export CSOPS_URL=http://code-server-host:4242
+export CSOPS_PASSWORD=your-password
+
+csops terminals list --orphan-only --older-than 24h
+csops terminals kill-orphans --older-than 24h --yes
+csops extensions gc --yes
+csops memory watch
+```
+
+### Embed the UI in your own admin panel
+
+```tsx
+import { Dashboard } from "code-server-ops-ui";
+import "code-server-ops-ui/styles.css";
+
+export default function CodeServerOps() {
+  return <Dashboard skipAuth={false} title="code-server" />;
+}
+```
+
+Individual panels (`TerminalsPanel`, `ExtensionsPanel`, `AiProcessesPanel`, `MemoryTimelinePanel`) export separately if you want your own layout.
 
 ## Architecture
 

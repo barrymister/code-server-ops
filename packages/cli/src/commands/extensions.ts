@@ -1,6 +1,6 @@
 import { Command } from "commander";
 import kleur from "kleur";
-import { get } from "../client.js";
+import { get, post } from "../client.js";
 import { formatKb } from "../format.js";
 
 interface ExtensionInfo {
@@ -10,6 +10,25 @@ interface ExtensionInfo {
   registered: boolean;
   orphan: boolean;
   multiVersionPeers: string[];
+}
+
+interface GcPreview {
+  token: string;
+  plan: Array<{
+    folderName: string;
+    name: string;
+    version: string;
+    sizeKb: number;
+  }>;
+  reclaimableKb: number;
+  ttlSeconds: number;
+}
+
+interface GcResult {
+  folderName: string;
+  ok: boolean;
+  reclaimedKb: number;
+  error?: string;
 }
 
 export function extensionsCommand(): Command {
@@ -57,29 +76,56 @@ export function extensionsCommand(): Command {
 
   cmd
     .command("gc")
-    .description("Preview orphan extension folders that would be removed")
+    .description("Garbage-collect orphan extension folders (Preview → confirm)")
+    .option("--yes", "skip the confirmation prompt and delete now")
     .option("--json", "emit JSON")
-    .action(async (opts: { json?: boolean }) => {
-      const exts = await get<ExtensionInfo[]>("/extensions");
-      const orphans = exts.filter((e) => e.orphan);
-      const totalKb = orphans.reduce((sum, e) => sum + e.sizeKb, 0);
+    .action(async (opts: { yes?: boolean; json?: boolean }) => {
+      const preview = await post<GcPreview>("/extensions/preview-gc", {});
 
-      if (opts.json) {
-        process.stdout.write(
-          JSON.stringify({ orphans, reclaimable: totalKb }, null, 2) + "\n",
-        );
+      if (opts.json && !opts.yes) {
+        process.stdout.write(JSON.stringify({ preview }, null, 2) + "\n");
+        console.error(kleur.yellow("Re-run with --yes to commit."));
         return;
       }
 
-      console.log(
-        kleur.yellow(
-          "Preview mode — mutation endpoints land in v0.1.0. These folders would be removed:",
-        ),
-      );
-      for (const e of orphans) {
-        console.log(`  ${e.name}-${e.version}  (${formatKb(e.sizeKb)})`);
+      if (!opts.json) {
+        console.log(
+          kleur.yellow(
+            `Preview — ${preview.plan.length} orphan folder(s) will be removed (${formatKb(preview.reclaimableKb)}):`,
+          ),
+        );
+        for (const p of preview.plan) {
+          console.log(`  ${p.folderName}  (${formatKb(p.sizeKb)})`);
+        }
       }
-      console.log(kleur.bold(`Reclaimable: ${formatKb(totalKb)}`));
+
+      if (!opts.yes) {
+        console.error(kleur.yellow("Re-run with --yes to commit."));
+        return;
+      }
+
+      const result = await post<{ results: GcResult[]; reclaimedKb: number }>(
+        "/extensions/gc",
+        { token: preview.token },
+      );
+
+      if (opts.json) {
+        process.stdout.write(JSON.stringify(result, null, 2) + "\n");
+        return;
+      }
+
+      const ok = result.results.filter((r) => r.ok).length;
+      const failed = result.results.length - ok;
+      console.log(
+        failed === 0
+          ? kleur.green(`✓ removed ${ok} folder(s), reclaimed ${formatKb(result.reclaimedKb)}`)
+          : kleur.yellow(`removed ${ok}, failed ${failed} (${formatKb(result.reclaimedKb)} reclaimed)`),
+      );
+      for (const r of result.results) {
+        if (!r.ok) {
+          console.log(`  ${kleur.red("✗")} ${r.folderName}  ${r.error ?? ""}`);
+        }
+      }
     });
 
   return cmd;

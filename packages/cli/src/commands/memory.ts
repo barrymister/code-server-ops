@@ -1,6 +1,6 @@
 import { Command } from "commander";
 import kleur from "kleur";
-import { get } from "../client.js";
+import { get, post } from "../client.js";
 import { formatKb } from "../format.js";
 
 interface MemorySample {
@@ -13,6 +13,12 @@ interface MemorySample {
 interface MemorySnapshot {
   current: MemorySample;
   series: MemorySample[];
+}
+
+interface RestartPreview {
+  token: string;
+  plan: { extHostPid: number; rssKb: number };
+  ttlSeconds: number;
 }
 
 export function memoryCommand(): Command {
@@ -56,6 +62,55 @@ export function memoryCommand(): Command {
       };
       await tick();
       setInterval(tick, intervalMs);
+    });
+
+  cmd
+    .command("restart-ext-host")
+    .description("Surgically restart the extension host (Preview → confirm)")
+    .option("--yes", "skip the confirmation prompt")
+    .option("--json", "emit JSON")
+    .action(async (opts: { yes?: boolean; json?: boolean }) => {
+      const preview = await post<RestartPreview>(
+        "/memory/preview-restart-ext-host",
+        {},
+      );
+
+      if (opts.json && !opts.yes) {
+        process.stdout.write(JSON.stringify({ preview }, null, 2) + "\n");
+        console.error(kleur.yellow("Re-run with --yes to commit."));
+        return;
+      }
+
+      if (!opts.json) {
+        console.log(
+          kleur.yellow(
+            `Preview — extension host pid=${preview.plan.extHostPid} (rss=${formatKb(preview.plan.rssKb)}) will be SIGTERM'd.`,
+          ),
+        );
+      }
+
+      if (!opts.yes) {
+        console.error(kleur.yellow("Re-run with --yes to commit."));
+        return;
+      }
+
+      const result = await post<{ ok: boolean; killedPid?: number; error?: string }>(
+        "/memory/restart-ext-host",
+        { token: preview.token },
+      );
+
+      if (opts.json) {
+        process.stdout.write(JSON.stringify(result, null, 2) + "\n");
+        return;
+      }
+
+      if (result.ok) {
+        console.log(
+          kleur.green(`✓ SIGTERM sent to pid ${result.killedPid ?? "?"} — code-server will respawn the extension host`),
+        );
+      } else {
+        console.log(kleur.red(`✗ restart failed: ${result.error ?? "unknown error"}`));
+      }
     });
 
   return cmd;

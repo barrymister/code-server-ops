@@ -1,7 +1,7 @@
 {
   "name": "code-server-ops-agent",
-  "version": "0.0.1-alpha.1",
-  "description": "Sidecar agent for code-server-ops. Read-only REST endpoints over process and extension state.",
+  "version": "0.0.2-alpha.1",
+  "description": "Sidecar agent for code-server-ops. REST endpoints over process and extension state, with Preview→Confirm mutations and optional bundled UI.",
   "license": "MIT",
   "author": "Barry Mister <barry.mister@gmail.com>",
   "homepage": "https://github.com/barrymister/code-server-ops#readme",
@@ -48,6 +48,7 @@
   },
   "dependencies": {
     "@fastify/basic-auth": "^6.0.0",
+    "@fastify/static": "^8.0.0",
     "fastify": "^5.1.0",
     "pidusage": "^3.0.2",
     "prom-client": "^15.1.3",

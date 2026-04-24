@@ -1,0 +1,76 @@
+{
+  "name": "code-server-ops-ui",
+  "version": "0.0.1-alpha.1",
+  "description": "React component library + standalone SPA for the code-server-ops admin dashboard.",
+  "license": "MIT",
+  "author": "Barry Mister <barry.mister@gmail.com>",
+  "homepage": "https://github.com/barrymister/code-server-ops#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/barrymister/code-server-ops.git",
+    "directory": "packages/ui"
+  },
+  "bugs": {
+    "url": "https://github.com/barrymister/code-server-ops/issues"
+  },
+  "keywords": [
+    "code-server",
+    "vscode",
+    "admin",
+    "dashboard",
+    "react",
+    "tailwind",
+    "shadcn"
+  ],
+  "type": "module",
+  "main": "./dist/lib/index.js",
+  "module": "./dist/lib/index.js",
+  "types": "./dist/lib/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/lib/index.d.ts",
+      "import": "./dist/lib/index.js"
+    },
+    "./styles.css": "./dist/lib/styles.css"
+  },
+  "files": [
+    "dist/lib",
+    "dist/app"
+  ],
+  "scripts": {
+    "dev": "vite",
+    "build": "npm run build:app && npm run build:lib",
+    "build:app": "vite build --outDir dist/app --emptyOutDir",
+    "build:lib": "vite build --config vite.lib.config.ts --emptyOutDir",
+    "lint": "tsc --noEmit",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "peerDependencies": {
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  },
+  "dependencies": {
+    "clsx": "^2.1.1",
+    "lucide-react": "^0.453.0",
+    "recharts": "^2.12.7",
+    "tailwind-merge": "^2.5.4"
+  },
+  "devDependencies": {
+    "@tailwindcss/vite": "^4.0.0",
+    "@types/node": "^20.16.0",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "@vitejs/plugin-react": "^4.3.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "tailwindcss": "^4.0.0",
+    "typescript": "^5.6.0",
+    "vite": "^5.4.0",
+    "vite-plugin-dts": "^4.2.0",
+    "vitest": "^2.1.0"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

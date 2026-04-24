@@ -1,7 +1,16 @@
 import type { FastifyInstance } from "fastify";
 import basicAuthPlugin from "@fastify/basic-auth";
 
-const AUTH_EXEMPT_ROUTES = new Set<string>(["/health", "/metrics"]);
+// Prefix-based auth: any request whose path starts with one of these roots
+// requires basic-auth. Everything else (health, metrics, UI static assets)
+// is served without auth.
+const PROTECTED_PREFIXES = [
+  "/terminals",
+  "/extensions",
+  "/ai-processes",
+  "/memory",
+  "/oom-events",
+];
 
 export async function registerAuth(app: FastifyInstance): Promise<void> {
   const password = process.env.CSOPS_PASSWORD;
@@ -21,8 +30,11 @@ export async function registerAuth(app: FastifyInstance): Promise<void> {
   });
 
   app.addHook("preHandler", (req, reply, done) => {
-    const route = req.routeOptions.url ?? req.url;
-    if (AUTH_EXEMPT_ROUTES.has(route)) {
+    const url = req.url.split("?")[0] ?? "";
+    const protectedPath = PROTECTED_PREFIXES.some(
+      (p) => url === p || url.startsWith(`${p}/`),
+    );
+    if (!protectedPath) {
       done();
       return;
     }

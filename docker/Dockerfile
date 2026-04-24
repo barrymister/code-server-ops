@@ -6,12 +6,17 @@ RUN corepack enable && corepack prepare pnpm@9.15.0 --activate
 COPY package.json pnpm-workspace.yaml tsconfig.base.json turbo.json ./
 COPY packages/agent/package.json ./packages/agent/
 COPY packages/cli/package.json ./packages/cli/
+COPY packages/ui/package.json ./packages/ui/
 
 RUN pnpm install --frozen-lockfile=false
 
 COPY packages/agent ./packages/agent
 COPY packages/cli ./packages/cli
+COPY packages/ui ./packages/ui
+
+# Build agent + UI (standalone SPA). Lib build is npm-only; skip in image.
 RUN pnpm turbo run build --filter=code-server-ops-agent
+RUN pnpm --filter code-server-ops-ui run build:app
 
 FROM node:20-slim AS runtime
 
@@ -25,6 +30,10 @@ WORKDIR /app
 COPY --from=build /build/packages/agent/dist ./dist
 COPY --from=build /build/packages/agent/package.json ./package.json
 COPY --from=build /build/packages/agent/node_modules ./node_modules
+
+# UI static assets — agent serves these from /. resolveUiRoot() looks at ../ui
+# relative to dist/, so place them at /app/ui.
+COPY --from=build /build/packages/ui/dist/app ./ui
 
 ENV NODE_ENV=production
 ENV CSOPS_HOST=0.0.0.0
