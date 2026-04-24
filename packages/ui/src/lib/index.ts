@@ -11,7 +11,14 @@ export { AiProcessesPanel } from "../dashboards/AiProcesses.js";
 export { MemoryTimelinePanel } from "../dashboards/MemoryTimeline.js";
 export { LoginGate } from "../components/LoginGate.js";
 export { Dashboard } from "../components/Dashboard.js";
-export { ApiClient, api, setPassword, clearPassword, hasPassword } from "./api.js";
+export {
+  ApiClient,
+  api,
+  configureApi,
+  setPassword,
+  clearPassword,
+  hasPassword,
+} from "./api.js";
 export type {
   TerminalInfo,
   ExtensionInfo,

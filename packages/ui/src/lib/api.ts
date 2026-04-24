@@ -9,7 +9,19 @@ export interface ApiError {
 }
 
 export class ApiClient {
-  constructor(private readonly baseUrl: string = "") {}
+  private baseUrl: string;
+
+  constructor(baseUrl: string = "") {
+    this.baseUrl = baseUrl;
+  }
+
+  setBaseUrl(baseUrl: string): void {
+    this.baseUrl = baseUrl;
+  }
+
+  getBaseUrl(): string {
+    return this.baseUrl;
+  }
 
   private headers(): HeadersInit {
     const pw = sessionStorage.getItem(STORAGE_KEY);
@@ -76,3 +88,12 @@ export function hasPassword(): boolean {
 }
 
 export const api = new ApiClient();
+
+/**
+ * Configure the singleton `api` client base URL. Call this once at app boot
+ * when the UI library is embedded under a different path (e.g. behind a
+ * growth-engine proxy at /api/infrastructure/code-server).
+ */
+export function configureApi(baseUrl: string): void {
+  api.setBaseUrl(baseUrl);
+}

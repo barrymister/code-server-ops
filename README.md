@@ -20,7 +20,7 @@ Coder Enterprise addresses some of this — for team workspaces managed via Terr
 |---|---|
 | [`code-server-ops-agent`](https://www.npmjs.com/package/code-server-ops-agent) | Fastify service. Read endpoints (`/terminals`, `/extensions`, `/ai-processes`, `/memory`, `/oom-events`, `/metrics`) + mutation endpoints with a Preview→Confirm token pattern. Serves the bundled UI at `/`. |
 | [`code-server-ops-cli`](https://www.npmjs.com/package/code-server-ops-cli) | `csops` — commander-based terminal client. `terminals list/kill/kill-orphans`, `extensions list/gc`, `memory show/watch/restart-ext-host`. Cron-friendly with `--json`. |
-| [`code-server-ops-ui`](https://www.npmjs.com/package/code-server-ops-ui) | React 19 + Tailwind v4 + shadcn component library. Four dashboards: Terminal Inspector, Extension Folder Explorer, AI Process Watcher, Memory + OOM Timeline. Also publishes a standalone SPA. |
+| [`code-server-ops-ui`](https://www.npmjs.com/package/code-server-ops-ui) | React 19 + Tailwind v4 + shadcn component library (`v0.0.3-alpha.1`). Four dashboards: Terminal Inspector, Extension Folder Explorer, AI Process Watcher, Memory + OOM Timeline. Also publishes a standalone SPA. Configurable base URL so it can be embedded behind a proxy. |
 
 ## Four dashboards
 
@@ -66,15 +66,25 @@ csops memory watch
 ### Embed the UI in your own admin panel
 
 ```tsx
+"use client";
 import { Dashboard } from "code-server-ops-ui";
 import "code-server-ops-ui/styles.css";
 
+// Point the library at a server-side proxy route so the agent password
+// stays off the browser. The host app's own auth (session cookies, etc.)
+// protects the proxy.
 export default function CodeServerOps() {
-  return <Dashboard skipAuth={false} title="code-server" />;
+  return (
+    <Dashboard
+      skipAuth
+      baseUrl="/api/infrastructure/code-server"
+      title="code-server ops"
+    />
+  );
 }
 ```
 
-Individual panels (`TerminalsPanel`, `ExtensionsPanel`, `AiProcessesPanel`, `MemoryTimelinePanel`) export separately if you want your own layout.
+Individual panels (`TerminalsPanel`, `ExtensionsPanel`, `AiProcessesPanel`, `MemoryTimelinePanel`) export separately if you want your own layout. Reference integration lives in [growth-engine](https://gitea.barrymister.dev/barrymister/growth-engine)'s `/infrastructure/code-server` page.
 
 ## Architecture
 

@@ -1,6 +1,6 @@
 {
   "name": "code-server-ops-ui",
-  "version": "0.0.1-alpha.1",
+  "version": "0.0.3-alpha.1",
   "description": "React component library + standalone SPA for the code-server-ops admin dashboard.",
   "license": "MIT",
   "author": "Barry Mister <barry.mister@gmail.com>",
@@ -25,10 +25,10 @@
   "type": "module",
   "main": "./dist/lib/index.js",
   "module": "./dist/lib/index.js",
-  "types": "./dist/lib/index.d.ts",
+  "types": "./dist/lib/lib/index.d.ts",
   "exports": {
     ".": {
-      "types": "./dist/lib/index.d.ts",
+      "types": "./dist/lib/lib/index.d.ts",
       "import": "./dist/lib/index.js"
     },
     "./styles.css": "./dist/lib/styles.css"

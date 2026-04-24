@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { hasPassword, clearPassword } from "../lib/api.js";
+import { useEffect, useState } from "react";
+import { hasPassword, clearPassword, configureApi } from "../lib/api.js";
 import { LoginGate } from "./LoginGate.js";
 import { Button } from "./primitives.js";
 import { TerminalsPanel } from "../dashboards/Terminals.js";
@@ -12,15 +12,30 @@ type Tab = "terminals" | "extensions" | "ai" | "memory";
 interface DashboardProps {
   title?: string;
   subtitle?: string;
-  /** Skip the login gate — useful when embedded in a host app that handles auth. */
+  /**
+   * Skip the built-in login gate. Use when the library is embedded under a
+   * host that already authenticates the user (e.g. a reverse proxy that
+   * injects credentials, or a server-side proxy route that adds basic-auth
+   * downstream).
+   */
   skipAuth?: boolean;
+  /**
+   * Override the base URL for API calls. Defaults to "" (same origin).
+   * Use when embedding behind a proxy — e.g. "/api/infrastructure/code-server".
+   */
+  baseUrl?: string;
 }
 
 export function Dashboard({
   title = "code-server-ops",
   subtitle = "Admin dashboard for self-hosted code-server",
   skipAuth = false,
+  baseUrl,
 }: DashboardProps) {
+  useEffect(() => {
+    if (baseUrl !== undefined) configureApi(baseUrl);
+  }, [baseUrl]);
+
   const [authed, setAuthed] = useState<boolean>(skipAuth || hasPassword());
   const [tab, setTab] = useState<Tab>("terminals");
 
