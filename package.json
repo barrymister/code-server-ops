@@ -1,0 +1,31 @@
+{
+  "name": "code-server-ops",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Admin dashboard + agent for self-hosted code-server.",
+  "license": "MIT",
+  "author": "Barry Mister <barry.mister@gmail.com>",
+  "homepage": "https://github.com/barrymister/code-server-ops",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/barrymister/code-server-ops.git"
+  },
+  "bugs": {
+    "url": "https://github.com/barrymister/code-server-ops/issues"
+  },
+  "packageManager": "pnpm@9.15.0",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "build": "turbo run build",
+    "lint": "turbo run lint",
+    "typecheck": "turbo run typecheck",
+    "test": "turbo run test",
+    "ci": "turbo run lint typecheck test build"
+  },
+  "devDependencies": {
+    "turbo": "^2.3.0",
+    "typescript": "^5.6.0"
+  }
+}

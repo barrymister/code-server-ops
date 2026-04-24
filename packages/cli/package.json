@@ -1,0 +1,62 @@
+{
+  "name": "code-server-ops-cli",
+  "version": "0.0.1-alpha.1",
+  "description": "CLI for code-server-ops. Cron-friendly inspection of terminals, extensions, and memory on a self-hosted code-server.",
+  "license": "MIT",
+  "author": "Barry Mister <barry.mister@gmail.com>",
+  "homepage": "https://github.com/barrymister/code-server-ops#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/barrymister/code-server-ops.git",
+    "directory": "packages/cli"
+  },
+  "bugs": {
+    "url": "https://github.com/barrymister/code-server-ops/issues"
+  },
+  "keywords": [
+    "code-server",
+    "vscode",
+    "cli",
+    "ops",
+    "admin",
+    "cron"
+  ],
+  "main": "dist/index.js",
+  "module": "dist/index.mjs",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "bin"
+  ],
+  "bin": {
+    "csops": "bin/csops.js"
+  },
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "lint": "tsc --noEmit",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "prepublishOnly": "npm run build"
+  },
+  "dependencies": {
+    "commander": "^12.1.0",
+    "kleur": "^4.1.5"
+  },
+  "devDependencies": {
+    "@types/node": "^20.16.0",
+    "tsup": "^8.3.0",
+    "typescript": "^5.6.0",
+    "vitest": "^2.1.0"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

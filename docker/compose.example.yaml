@@ -1,0 +1,41 @@
+# Example: run code-server-ops-agent as a sidecar alongside your existing code-server container.
+#
+# Required: CSOPS_PASSWORD in your .env. This is the basic-auth password for the REST API.
+#
+# The sidecar shares code-server's PID namespace so it can read /proc for code-server's own
+# child processes (bash terminals, extension host, AI binaries). It does NOT share network
+# namespace — the agent exposes port 4242 on its own and should be reached via `csops-agent:4242`
+# from other containers on the same docker network, or tunneled (Tailscale / Cloudflare Tunnel).
+
+services:
+  code-server:
+    image: codercom/code-server:latest
+    container_name: code-server
+    restart: unless-stopped
+    volumes:
+      - code-server-extensions:/home/coder/.local/share/code-server/extensions
+      - code-server-data:/home/coder
+    ports:
+      - "8080:8080"
+
+  code-server-ops-agent:
+    image: ghcr.io/barrymister/code-server-ops:0.0.1-alpha.1
+    container_name: code-server-ops-agent
+    restart: unless-stopped
+    # Share code-server's PID namespace — required for /proc reads of its children.
+    pid: "container:code-server"
+    # Read-only view of the same extensions volume.
+    volumes:
+      - code-server-extensions:/home/coder/.local/share/code-server/extensions:ro
+      # Optional: mount the host journal so /oom-events can report kernel OOM kills.
+      - /var/log/journal:/var/log/journal:ro
+    environment:
+      CSOPS_PASSWORD: ${CSOPS_PASSWORD}
+      CSOPS_PORT: 4242
+      CSOPS_EXTENSIONS_DIR: /home/coder/.local/share/code-server/extensions
+    ports:
+      - "4242:4242"
+
+volumes:
+  code-server-extensions:
+  code-server-data:
