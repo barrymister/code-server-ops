@@ -19,7 +19,7 @@ services:
       - "8080:8080"
 
   code-server-ops-agent:
-    image: ghcr.io/barrymister/code-server-ops:0.0.2-alpha.1
+    image: ghcr.io/barrymister/code-server-ops:0.1.0
     container_name: code-server-ops-agent
     restart: unless-stopped
     # Share code-server's PID namespace — required for /proc reads of its children.

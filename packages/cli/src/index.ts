@@ -8,7 +8,7 @@ import { terminalsCommand } from "./commands/terminals.js";
 import { extensionsCommand } from "./commands/extensions.js";
 import { memoryCommand } from "./commands/memory.js";
 
-const VERSION = "0.0.2-alpha.1";
+const VERSION = "0.1.0";
 
 function main(): void {
   const program = new Command();

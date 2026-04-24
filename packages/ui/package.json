@@ -1,6 +1,6 @@
 {
   "name": "code-server-ops-ui",
-  "version": "0.0.3-alpha.1",
+  "version": "0.1.0",
   "description": "React component library + standalone SPA for the code-server-ops admin dashboard.",
   "license": "MIT",
   "author": "Barry Mister <barry.mister@gmail.com>",
