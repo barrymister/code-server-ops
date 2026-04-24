@@ -1,6 +1,6 @@
 {
   "name": "code-server-ops-cli",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "CLI for code-server-ops. Cron-friendly inspection + Preview→Confirm mutations over a self-hosted code-server.",
   "license": "MIT",
   "author": "Barry Mister <barry.mister@gmail.com>",

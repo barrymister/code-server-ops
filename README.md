@@ -2,7 +2,18 @@
 
 Admin dashboard + agent for self-hosted [code-server](https://github.com/coder/code-server). Fills the "won't fix" gap upstream left.
 
-> **Status:** Alpha. `v0.0.2-alpha.1` ships the agent, CLI, and React UI — four dashboards with a Preview→Confirm mutation pattern. `v0.1.0` (session 97) cuts the docker image + growth-engine demo site.
+> **Status:** `v0.1.0` — stable. Three npm packages (agent + CLI + React UI) and a multi-arch Docker image on `ghcr.io`.
+
+## Screenshots
+
+Four dashboards. Every destructive action is gated by a Preview-before-commit flow.
+
+| | |
+|---|---|
+| **Terminal Inspector** — orphan bash processes left behind when code-server tabs close without `exit`. Per-row kill or bulk "kill orphans older than [age]" with a Preview modal listing the exact PIDs. | ![Terminal Inspector](docs/screenshots/01-terminals.png) |
+| **Extension Folder Explorer** — folders on disk vs. `extensions.json` registry. Orphan badges for uninstalled-but-not-deleted folders. Multi-version peers (e.g. three old claude-code versions surviving an auto-update). "GC all orphans" shows reclaimable bytes (here: 1.11 GB across 5 folders). | ![Extension Folder Explorer](docs/screenshots/02-extensions.png) |
+| **AI Process Watcher** — Claude Code, Copilot, Continue, Cline, Codex processes. Highlights duplicates that accumulate from auto-resumed sessions. "Kill duplicates" keeps the oldest panel (your active conversation) and SIGTERMs the ghosts. | ![AI Process Watcher](docs/screenshots/03-ai-processes.png) |
+| **Memory + OOM Timeline** — extension-host RSS over the last hour at 15-second resolution. Dotted red vertical markers at OOM-kill events parsed from `journalctl`. "Restart ext host" SIGTERMs the extension host surgically so code-server respawns it without losing your tabs. | ![Memory + OOM Timeline](docs/screenshots/04-memory.png) |
 
 ## Why this exists
 

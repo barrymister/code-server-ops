@@ -1,6 +1,6 @@
 {
   "name": "code-server-ops-agent",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Sidecar agent for code-server-ops. REST endpoints over process and extension state, with Preview→Confirm mutations and optional bundled UI.",
   "license": "MIT",
   "author": "Barry Mister <barry.mister@gmail.com>",

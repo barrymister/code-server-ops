@@ -1,0 +1,124 @@
+<!doctype html>
+<html lang="en" class="dark">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=1280, initial-scale=1.0" />
+    <title>code-server-ops demo</title>
+    <link rel="stylesheet" href="https://esm.sh/code-server-ops-ui@0.1.0/styles.css" />
+    <style>
+      html, body { background: #09090b; color: #fafafa; margin: 0; }
+      body { font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif; }
+    </style>
+  </head>
+  <body>
+    <div id="root"></div>
+
+    <script>
+      // Mock fetch — intercepts every call the library makes so no agent is
+      // required. Install BEFORE the library module script below so the first
+      // render already hits the mocks.
+
+      const now = Date.now();
+      const iso = (secsAgo) => new Date(now - secsAgo * 1000).toISOString();
+
+      const TERMINALS = [
+        { pid: 3355247, lstart: iso(86400 * 6 + 3600 * 2),  ageSeconds: 86400 * 6 + 3600 * 2,  rssKb: 268, ptyHostPid: 5653, attached: true,  cwd: "/home/coder/projects/api-gateway" },
+        { pid: 3428091, lstart: iso(86400 * 4 + 3600 * 7),  ageSeconds: 86400 * 4 + 3600 * 7,  rssKb: 312, ptyHostPid: 5653, attached: false, cwd: "/home/coder/projects/billing-service" },
+        { pid: 3501823, lstart: iso(86400 * 2 + 3600 * 11), ageSeconds: 86400 * 2 + 3600 * 11, rssKb: 244, ptyHostPid: 5653, attached: false, cwd: "/home/coder/projects/worker-queue" },
+        { pid: 3612440, lstart: iso(86400 * 1 + 3600 * 3),  ageSeconds: 86400 * 1 + 3600 * 3,  rssKb: 284, ptyHostPid: 5653, attached: false, cwd: null },
+        { pid: 3789012, lstart: iso(3600 * 14),             ageSeconds: 3600 * 14,             rssKb: 228, ptyHostPid: 5653, attached: true,  cwd: "/home/coder/projects/auth-svc" },
+        { pid: 3823551, lstart: iso(3600 * 5 + 900),        ageSeconds: 3600 * 5 + 900,        rssKb: 296, ptyHostPid: 5653, attached: true,  cwd: "/home/coder/projects/web-dashboard" },
+        { pid: 3891002, lstart: iso(1800),                  ageSeconds: 1800,                  rssKb: 256, ptyHostPid: 5653, attached: true,  cwd: "/home/coder/projects/web-dashboard" },
+      ];
+
+      const EXTENSIONS = [
+        { name: "anthropic.claude-code",   version: "2.1.119",                registered: true,  orphan: false, sizeKb:  48640, multiVersionPeers: [] },
+        { name: "anthropic.claude-code",   version: "2.1.116",                registered: false, orphan: true,  sizeKb:  47872, multiVersionPeers: ["anthropic.claude-code-2.1.119","anthropic.claude-code-2.1.114"] },
+        { name: "anthropic.claude-code",   version: "2.1.114",                registered: false, orphan: true,  sizeKb:  47488, multiVersionPeers: ["anthropic.claude-code-2.1.119","anthropic.claude-code-2.1.116"] },
+        { name: "ms-python.python",        version: "2024.22.0",              registered: true,  orphan: false, sizeKb:  72192, multiVersionPeers: [] },
+        { name: "ms-python.debugpy",       version: "2024.14.0",              registered: true,  orphan: false, sizeKb:  27648, multiVersionPeers: [] },
+        { name: "redhat.vscode-yaml",      version: "1.23.2026042308",        registered: false, orphan: true,  sizeKb:   8192, multiVersionPeers: ["redhat.vscode-yaml-1.14.0"] },
+        { name: "redhat.vscode-yaml",      version: "1.14.0",                 registered: true,  orphan: false, sizeKb:   7936, multiVersionPeers: ["redhat.vscode-yaml-1.23.2026042308"] },
+        { name: "amazonwebservices.aws-toolkit-vscode", version: "3.47.0",    registered: false, orphan: true,  sizeKb: 558080, multiVersionPeers: [] },
+        { name: "googlecloudtools.cloudcode", version: "2.18.0",              registered: false, orphan: true,  sizeKb: 501248, multiVersionPeers: [] },
+        { name: "esbenp.prettier-vscode",  version: "11.0.0",                 registered: true,  orphan: false, sizeKb:   3072, multiVersionPeers: [] },
+        { name: "dbaeumer.vscode-eslint",  version: "3.0.10",                 registered: true,  orphan: false, sizeKb:   6144, multiVersionPeers: [] },
+      ];
+
+      const AI_PROCESSES = [
+        { pid: 3891145, extension: "claude-code",     uptimeSeconds: 5400,  rssKb: 524288, conversationId: "a3f5-9b2c", extensionHostPid: 3891001 },
+        { pid: 3889022, extension: "claude-code",     uptimeSeconds: 14400, rssKb: 612352, conversationId: "c8d1-4e7f", extensionHostPid: 3891001 },
+        { pid: 3851447, extension: "claude-code",     uptimeSeconds: 82800, rssKb: 758272, conversationId: "1a9b-2c3d", extensionHostPid: 3891001 },
+        { pid: 3889901, extension: "github-copilot",  uptimeSeconds: 5820,  rssKb: 102400, conversationId: null,        extensionHostPid: 3891001 },
+        { pid: 3889905, extension: "continue",        uptimeSeconds: 5760,  rssKb:  81920, conversationId: null,        extensionHostPid: 3891001 },
+      ];
+
+      // Memory series — gently climbing RSS with two OOM spikes that recovered
+      const MEMORY_SERIES = [];
+      for (let i = 240; i >= 0; i--) {
+        const t = new Date(now - i * 15000).toISOString();
+        // Base climb 1.2GB → 2.6GB, with dips after each OOM
+        let rssMb = 1200 + (240 - i) * 6;
+        if (i === 120) rssMb = 3400;               // first OOM spike
+        if (i >= 115 && i < 120) rssMb = 3400 - (120 - i) * 180;
+        if (i < 115 && i > 75)   rssMb = 1400 + (115 - i) * 20;
+        if (i === 40) rssMb = 3600;                // second OOM spike
+        if (i >= 35 && i < 40)   rssMb = 3600 - (40 - i) * 200;
+        if (i < 35)              rssMb = 1500 + (35 - i) * 35;
+        MEMORY_SERIES.push({ timestamp: t, extHostPid: 3891001, rssKb: Math.round(rssMb * 1024), heapUsedKb: null });
+      }
+      const CURRENT = MEMORY_SERIES[MEMORY_SERIES.length - 1];
+
+      const OOM_EVENTS = [
+        { timestamp: iso(60 * 30),     pid: 3891001, comm: "extensionHost", containerHint: "code-server" },
+        { timestamp: iso(60 * 80),     pid: 3788004, comm: "extensionHost", containerHint: "code-server" },
+      ];
+
+      const MOCKS = {
+        "/health":       () => ({ status: "ok" }),
+        "/terminals":    () => TERMINALS,
+        "/extensions":   () => EXTENSIONS,
+        "/ai-processes": () => AI_PROCESSES,
+        "/memory":       () => ({ current: CURRENT, series: MEMORY_SERIES }),
+        "/oom-events":   () => OOM_EVENTS,
+      };
+
+      const origFetch = window.fetch.bind(window);
+      window.fetch = async (url, init) => {
+        try {
+          const u = typeof url === "string" ? new URL(url, location.href) : url;
+          const path = u.pathname;
+          if (MOCKS[path]) {
+            return new Response(JSON.stringify(MOCKS[path]()), {
+              status: 200,
+              headers: { "content-type": "application/json" },
+            });
+          }
+          // Mutations — return shaped stubs so the UI flows work
+          if (path.endsWith("/preview-kill") || path.endsWith("/preview-gc") || path.endsWith("/preview-restart-ext-host")) {
+            return new Response(JSON.stringify({ token: "demo-token", plan: [], ttlSeconds: 60 }), {
+              status: 200,
+              headers: { "content-type": "application/json" },
+            });
+          }
+        } catch (e) {}
+        return origFetch(url, init);
+      };
+    </script>
+
+    <script type="module">
+      import React from "https://esm.sh/react@19.1.0";
+      import { createRoot } from "https://esm.sh/react-dom@19.1.0/client";
+      import { Dashboard } from "https://esm.sh/code-server-ops-ui@0.1.0?deps=react@19.1.0,react-dom@19.1.0";
+
+      const root = createRoot(document.getElementById("root"));
+      root.render(
+        React.createElement(Dashboard, {
+          skipAuth: true,
+          title: "code-server-ops",
+          subtitle: "Demo — mock data, no live agent",
+        })
+      );
+    </script>
+  </body>
+</html>
